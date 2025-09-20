@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1>Analysis Results for {{ pdf.original_filename }}</h1>
+        
+        {% if analysis %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2>Overall Verdict: 
+                    <span class="{% if analysis.overall_verdict == 'phishing' %}text-danger{% elif analysis.overall_verdict == 'suspicious' %}text-warning{% else %}text-success{% endif %}">
+                        {{ analysis.overall_verdict|upper }}
+                    </span>
+                </h2>
+            </div>
+            <div class="card-body">
+                <p>Confidence Score: {{ analysis.confidence_score }}%</p>
+                <p>Analyzed at: {{ analysis.analyzed_at }}</p>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if companies %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2>Detected Companies</h2>
+            </div>
+            <div class="card-body">
+                <ul class="list-group">
+                    {% for company in companies %}
+                    <li class="list-group-item">{{ company.name }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if urls %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2>Detected URLs</h2>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>URL</th>
+                                <th>Domain</th>
+                                <th>Status</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for url in urls %}
+                            <tr>
+                                <td><a href="{{ url.url }}" target="_blank">{{ url.url|truncatechars:50 }}</a></td>
+                                <td>{{ url.domain }}</td>
+                                <td>
+                                    {% if url.is_suspicious %}
+                                    <span class="badge bg-danger">Suspicious- Do not click ⚠️</span>
+                                    {% else %}
+                                    <span class="badge bg-success">OK</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" type="button" data-bs-toggle="collapse" 
+                                            data-bs-target="#details-{{ url.id }}">
+                                        Details
+                                    </button>
+                                    <div class="collapse" id="details-{{ url.id }}">
+                                        <pre>{{ url.security_checks|pretty_json }}</pre>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if forms %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2>Detected Forms</h2>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Action URL</th>
+                                <th>Method</th>
+                                <th>Status</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for form in forms %}
+                            <tr>
+                                <td><a href="{{ form.form_action }}" target="_blank">{{ form.form_action|truncatechars:50 }}</a></td>
+                                <td>{{ form.form_method }}</td>
+                                <td>
+                                    {% if form.is_phishing %}
+                                    <span class="badge bg-danger">Phishing</span>
+                                    {% else %}
+                                    <span class="badge bg-success">OK</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" type="button" data-bs-toggle="collapse" 
+                                            data-bs-target="#form-details-{{ form.id }}">
+                                        Details
+                                    </button>
+                                    <div class="collapse" id="form-details-{{ form.id }}">
+                                        <pre>{{ form.analysis_results|pretty_json }}</pre>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh while analysis is in progress
+{% if not analysis %}
+function checkProgress() {
+    fetch("{% url 'analysis_progress' pdf.id %}")
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'complete') {
+                window.location.reload();
+            } else {
+                setTimeout(checkProgress, 3000);
+            }
+        });
+}
+setTimeout(checkProgress, 3000);
+{% endif %}
+</script>
+{% endblock %}
